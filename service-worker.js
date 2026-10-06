@@ -1,5 +1,5 @@
 // Service Worker 版本号，改了内容后改这个数字可以强制更新
-const CACHE_NAME = 'focus-mountain-v1';
+const CACHE_NAME = 'focus-mountain-v2';
 
 // 需要缓存的文件列表
 const ASSETS_TO_CACHE = [
