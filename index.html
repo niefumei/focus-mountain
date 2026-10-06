@@ -102,6 +102,12 @@ canvas#mountainCanvas{height:110px}
 <button class="btn btn-primary" id="add60Btn">➕ 1小时</button>
 <button class="btn btn-undo" id="undoBtn">↩️ 撤销</button>
 <button class="btn btn-danger" id="clearTodayBtn">🗑️ 清空今日</button>
+<button class="btn" id="exportBtn" style="color:#2e7d32;border-color:#a5d6a7;">📤 导出</button>
+<button class="btn" id="importBtn" style="color:#1565c0;border-color:#90caf9;">📥 导入</button>
+<input type="file" id="importFile" accept=".json" style="display:none">
+<button class="btn" id="exportBtn" style="color:#2e7d32;border-color:#a5d6a7;">📤 导出</button>
+<button class="btn" id="importBtn" style="color:#1565c0;border-color:#90caf9;">📥 导入</button>
+<input type="file" id="importFile" accept=".json" style="display:none">
 <div class="focus-selector"><select id="focusTypeSelect">
 <option value="deep">🧠 深度工作</option>
 <option value="study">📚 学习</option>
@@ -304,6 +310,74 @@ h+='<div class="history-item"><div class="history-item-info">🕒 '+l.date+' '+l
 });
 el.innerHTML=h;
 }
+function exportData(){
+    const exportObj={version:1,exportTime:new Date().toISOString(),data:data};
+    const json=JSON.stringify(exportObj,null,2);
+    const blob=new Blob([json],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const date=new Date().toISOString().slice(0,10);
+    a.href=url;
+    a.download='focus-mountain-'+date+'.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log('已导出数据');
+}
+function importData(file){
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+        try{
+            const imported=JSON.parse(e.target.result);
+            let importedData;
+            if(imported.data && imported.data.daily){importedData=imported.data}
+            else if(imported.daily){importedData=imported}
+            else{alert('文件格式不对，不是有效的专注数据文件');return}
+            if(!confirm('导入将覆盖当前所有数据，确认吗？'))return;
+            data=importedData;
+            if(!data.logs)data.logs=[];
+            data.logs.forEach(l=>{if(!l.id)l.id=uid()});
+            save();renderAll();renderLog();
+            alert('导入成功！共 '+data.logs.length+' 条记录');
+        }catch(err){alert('文件解析失败：'+err.message)}
+    };
+    reader.readAsText(file);
+}
+function exportData(){
+    const exportObj={version:1,exportTime:new Date().toISOString(),data:data};
+    const json=JSON.stringify(exportObj,null,2);
+    const blob=new Blob([json],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const date=new Date().toISOString().slice(0,10);
+    a.href=url;
+    a.download='focus-mountain-'+date+'.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    console.log('已导出数据');
+}
+function importData(file){
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+        try{
+            const imported=JSON.parse(e.target.result);
+            let importedData;
+            if(imported.data && imported.data.daily){importedData=imported.data}
+            else if(imported.daily){importedData=imported}
+            else{alert('文件格式不对');return}
+            if(!confirm('导入将覆盖当前所有数据，确认吗？'))return;
+            data=importedData;
+            if(!data.logs)data.logs=[];
+            data.logs.forEach(l=>{if(!l.id)l.id=uid()});
+            save();renderAll();renderLog();
+            alert('导入成功！共 '+data.logs.length+' 条记录');
+        }catch(err){alert('文件解析失败：'+err.message)}
+    };
+    reader.readAsText(file);
+}
 function renderAll(){drawMountain((todayTotal()%240)/240);stats();trend();pie();bar()}
 function init(){
 load();
@@ -313,6 +387,12 @@ document.getElementById('add60Btn').onclick=()=>{if(confirm('确认增加 1 小�
 document.getElementById('mountainCanvas').onclick=()=>add(15,currentType);
 document.getElementById('undoBtn').onclick=undo;
 document.getElementById('clearTodayBtn').onclick=clearToday;
+document.getElementById('exportBtn').onclick=exportData;
+document.getElementById('importBtn').onclick=()=>document.getElementById('importFile').click();
+document.getElementById('importFile').onchange=(e)=>{const f=e.target.files[0];if(f)importData(f);e.target.value='';};
+document.getElementById('exportBtn').onclick=exportData;
+document.getElementById('importBtn').onclick=()=>document.getElementById('importFile').click();
+document.getElementById('importFile').onchange=(e)=>{const f=e.target.files[0];if(f)importData(f);e.target.value='';};
 document.getElementById('focusTypeSelect').onchange=e=>currentType=e.target.value;
 document.getElementById('viewWeekBtn').onclick=()=>{trendView='week';trend()};
 document.getElementById('viewMonthBtn').onclick=()=>{trendView='month';trend()};
