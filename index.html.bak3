@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>专注爬山 · 时间统计</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#1e3a5f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="专注爬山">
+<link rel="icon" type="image/png" href="./icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;font-family:system-ui,-apple-system,sans-serif}
+body{background:#f0f4f8;margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+.app{max-width:1300px;width:100%;background:#fff;border-radius:40px;box-shadow:0 20px 40px rgba(0,0,0,.1);padding:28px 32px}
+h1{font-size:1.9rem;color:#1e3a5f;margin:0 0 8px}
+.subhead{color:#5b7a9a;margin-bottom:24px;font-size:.95rem}
+.mountain-panel{display:flex;gap:32px;align-items:center;background:#e6f0fa;border-radius:32px;padding:20px 32px;margin-bottom:28px;flex-wrap:wrap}
+.mountain-visual{flex:2;min-width:280px}
+canvas#mountainCanvas{width:100%;height:150px;display:block;background:#d9e9fa;border-radius:80px;cursor:pointer}
+.mountain-stats{flex:1;min-width:200px;display:flex;flex-direction:column;gap:12px}
+.stat-card{background:#fff;border-radius:24px;padding:14px 20px;border:1px solid #cdddec}
+.stat-label{font-size:.85rem;color:#4b6f8c;font-weight:500}
+.stat-value{font-size:2rem;font-weight:700;color:#1e3a5f;line-height:1.2}
+.stat-sub{font-size:.85rem;color:#6f8daa}
+.control-bar{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:32px;align-items:center}
+.btn{background:#fff;border:1px solid #b9d0e7;border-radius:60px;padding:10px 24px;font-weight:500;color:#1e3a5f;cursor:pointer;font-size:.95rem}
+.btn-primary{background:#1e3a5f;border-color:#1e3a5f;color:#fff}
+.focus-selector{margin-left:auto}
+.focus-selector select{border:1px solid #b9d0e7;border-radius:40px;padding:10px 18px;background:#fff;font-size:.95rem;color:#1e3a5f;font-weight:500}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.chart-card{background:#f9fcff;border-radius:28px;padding:18px;border:1px solid #d6e5f5}
+.chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:0 8px}
+.chart-header h3{font-size:1.1rem;color:#1e3a5f;margin:0}
+.chart-container{position:relative;height:220px}
+.pie-row{display:flex;gap:20px;align-items:center}
+.pie-wrapper{flex:2;height:200px}
+.legend{flex:1;font-size:.85rem;color:#2a4b6e;display:flex;flex-direction:column;gap:6px}
+.legend-item{display:flex;align-items:center;gap:8px}
+.legend-color{width:14px;height:14px;border-radius:4px}
+.history-log{margin-top:28px;max-height:150px;overflow-y:auto;border-top:1px solid #d6e5f5;padding-top:16px;font-size:.85rem;color:#3f5f7c}
+.history-log div{padding:4px 0;border-bottom:1px solid #ecf3fa}
+.footer-note{margin-top:16px;font-size:.8rem;color:#8aa2b9;text-align:right}
+@media(max-width:768px){
+.app{border-radius:24px;padding:18px 16px}
+h1{font-size:1.4rem}
+.mountain-panel{padding:16px;gap:16px}
+.mountain-visual{min-width:100%}
+canvas#mountainCanvas{height:110px}
+.control-bar{gap:8px}
+.focus-selector{margin-left:0;width:100%}
+.focus-selector select{width:100%}
+.charts-grid{grid-template-columns:1fr}
+.chart-container{height:180px}
+.pie-row{flex-direction:column}
+.legend{flex-direction:row;flex-wrap:wrap;justify-content:center}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>🏔️ 专注爬山 · 时间统计</h1>
+<div class="subhead">每专注 4 小时，小人翻越一座山 · 点击小山可增加15分钟</div>
+<div class="mountain-panel">
+<div class="mountain-visual"><canvas id="mountainCanvas" width="600" height="150"></canvas></div>
+<div class="mountain-stats">
+<div class="stat-card"><div class="stat-label">今日专注</div><div class="stat-value" id="todayTotalDisplay">0h 0m</div><div class="stat-sub" id="todayMountainDisplay">0 座山 · 进度 0%</div></div>
+<div class="stat-card"><div class="stat-label">累计爬山</div><div class="stat-value" id="totalMountainsDisplay">0</div><div class="stat-sub">总专注时长 (小时)</div></div>
+</div>
+</div>
+<div class="control-bar">
+<button class="btn" id="add15Btn">➕ 15分钟</button>
+<button class="btn" id="add30Btn">➕ 30分钟</button>
+<button class="btn btn-primary" id="add60Btn">➕ 1小时</button>
+<div class="focus-selector"><select id="focusTypeSelect">
+<option value="deep">🧠 深度工作</option>
+<option value="study">📚 学习</option>
+<option value="creative">🎨 创造</option>
+<option value="exercise">🏃 运动</option>
+<option value="other">📌 其他</option>
+</select></div>
+</div>
+<div class="charts-grid">
+<div class="chart-card" style="grid-column:span 2">
+<div class="chart-header"><h3>📈 专注趋势</h3><div>
+<button class="btn" id="viewWeekBtn" style="padding:4px 14px;font-size:.8rem">周</button>
+<button class="btn" id="viewMonthBtn" style="padding:4px 14px;font-size:.8rem">月</button>
+<button class="btn" id="viewYearBtn" style="padding:4px 14px;font-size:.8rem">年</button>
+</div></div>
+<div class="chart-container" style="height:200px"><canvas id="trendChart"></canvas></div>
+</div>
+<div class="chart-card">
+<div class="chart-header"><h3>🍰 专注类型分布</h3><span style="font-size:.8rem;color:#6f8daa">今日</span></div>
+<div class="pie-row"><div class="pie-wrapper"><canvas id="pieChart"></canvas></div><div class="legend" id="pieLegend"></div></div>
+</div>
+<div class="chart-card">
+<div class="chart-header"><h3>⛰️ 每日爬山数 (座)</h3><span style="font-size:.8rem;color:#6f8daa">最近7天</span></div>
+<div class="chart-container" style="height:180px"><canvas id="barChart"></canvas></div>
+</div>
+</div>
+<div class="history-log" id="historyLog"><div>📋 暂无记录</div></div>
+<div class="footer-note">点击小山可增加15分钟专注时间</div>
+</div>
+<script>
+(function(){
+let data={daily:{},logs:[]},currentType='deep',trendView='week',tc=null,pc=null,bc=null;
+const todayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const fmt=m=>{const h=Math.floor(m/60),mm=Math.round(m%60);return h===0?mm+'m':h+'h '+mm+'m'};
+const todayTotal=()=>data.daily[todayStr()]?.total||0;
+const todayTypes=()=>data.daily[todayStr()]?.types||{deep:0,study:0,creative:0,exercise:0,other:0};
+const totalMin=()=>{let s=0;for(let d in data.daily)s+=data.daily[d].total||0;return s};
+const save=()=>{try{localStorage.setItem('focusMountainData',JSON.stringify(data))}catch(e){}};
+function load(){
+try{const s=localStorage.getItem('focusMountainData');if(s){const p=JSON.parse(s);if(p&&p.daily){data=p;if(!data.logs)data.logs=[]}}}catch(e){}
+const t=todayStr();
+if(!data.daily[t]){data.daily[t]={total:0,types:{deep:0,study:0,creative:0,exercise:0,other:0}}}
+else{const ty=data.daily[t].types||{};data.daily[t].types={deep:ty.deep||0,study:ty.study||0,creative:ty.creative||0,exercise:ty.exercise||0,other:ty.other||0}}
+}
+function add(min,type){
+if(min<=0)return;
+const t=todayStr();
+if(!data.daily[t])data.daily[t]={total:0,types:{deep:0,study:0,creative:0,exercise:0,other:0}};
+const d=data.daily[t];
+d.total=(d.total||0)+min;
+if(!d.types)d.types={deep:0,study:0,creative:0,exercise:0,other:0};
+d.types[type]=(d.types[type]||0)+min;
+const names={deep:'深度工作',study:'学习',creative:'创造',exercise:'运动',other:'其他'};
+data.logs.unshift({time:new Date().toLocaleTimeString('zh-CN',{hour12:false,hour:'2-digit',minute:'2-digit'}),date:t,minutes:min,typeName:names[type]});
+if(data.logs.length>20)data.logs.pop();
+save();renderAll();renderLog();
+}
+function drawMountain(p){
+const c=document.getElementById('mountainCanvas'),ctx=c.getContext('2d'),w=c.width,h=c.height;
+ctx.clearRect(0,0,w,h);
+const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,'#d9e9fa');g.addColorStop(1,'#c2d9f0');ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+ctx.beginPath();ctx.moveTo(0,h-10);ctx.lineTo(w*.7,20);ctx.lineTo(w,h-10);ctx.closePath();ctx.fillStyle='#8bb3d4';ctx.fill();
+ctx.beginPath();ctx.moveTo(w*.7,20);ctx.lineTo(w*.68,45);ctx.lineTo(w*.72,45);ctx.closePath();ctx.fillStyle='#fff';ctx.fill();
+let t=p,x,y;
+if(t<=.5){const r=t/.5;x=w*.7*r;y=(h-10)+(20-(h-10))*r}
+else{const r=(t-.5)/.5;x=w*.7+(w-w*.7)*r;y=20+((h-10)-20)*r}
+ctx.beginPath();ctx.arc(x,y-5,6,0,Math.PI*2);ctx.fillStyle='#ff8a5c';ctx.fill();
+ctx.beginPath();ctx.arc(x,y-14,5,0,Math.PI*2);ctx.fillStyle='#ffb38b';ctx.fill();
+ctx.beginPath();ctx.arc(x-2,y-15,1.2,0,Math.PI*2);ctx.fillStyle='#2d2d2d';ctx.fill();
+ctx.beginPath();ctx.arc(x+2,y-15,1.2,0,Math.PI*2);ctx.fill();
+ctx.beginPath();ctx.moveTo(w*.7,20);ctx.lineTo(w*.7,0);ctx.lineWidth=1.5;ctx.strokeStyle='#2d4b6e';ctx.stroke();
+ctx.beginPath();ctx.moveTo(w*.7,0);ctx.lineTo(w*.7+12,6);ctx.lineTo(w*.7,12);ctx.closePath();ctx.fillStyle='#e63946';ctx.fill();
+}
+function stats(){
+const tt=todayTotal(),tm=Math.floor(tt/240),pp=Math.round(((tt%240)/240)*100);
+document.getElementById('todayTotalDisplay').textContent=fmt(tt);
+document.getElementById('todayMountainDisplay').textContent=tm+' 座山 · 进度 '+pp+'%';
+document.getElementById('totalMountainsDisplay').textContent=(totalMin()/240).toFixed(1);
+}
+function trend(){
+const ctx=document.getElementById('trendChart').getContext('2d');let labels=[],vals=[];
+const today=new Date();
+if(trendView==='week'){for(let i=6;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');vals.push(((data.daily[ds]?.total||0)/60).toFixed(1));labels.push((d.getMonth()+1)+'/'+d.getDate())}}
+else if(trendView==='month'){for(let i=29;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');vals.push(((data.daily[ds]?.total||0)/60).toFixed(1));labels.push(i%5===0||i===0?(d.getMonth()+1)+'/'+d.getDate():'')}}
+else{for(let i=11;i>=0;i--){const d=new Date(today);d.setMonth(today.getMonth()-i);const y=d.getFullYear(),m=d.getMonth();let mt=0;for(let ds in data.daily){const[yy,mm]=ds.split('-').map(Number);if(yy===y&&mm===m+1)mt+=data.daily[ds].total||0}vals.push((mt/60).toFixed(1));labels.push((m+1)+'月')}}
+if(tc)tc.destroy();
+tc=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'小时',data:vals,borderColor:'#1e3a5f',backgroundColor:'rgba(30,58,95,.1)',borderWidth:3,pointBackgroundColor:'#ff8a5c',pointBorderColor:'white',pointRadius:4,tension:.2,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#d6e5f5'}},x:{grid:{display:false}}}}});
+}
+function pie(){
+const ty=todayTypes();const names={deep:'深度工作',study:'学习',creative:'创造',exercise:'运动',other:'其他'};const cols={deep:'#1e3a5f',study:'#2e6b9e',creative:'#ff8a5c',exercise:'#4caf7a',other:'#b0b0b0'};
+const labels=[],vals=[],bgs=[];
+for(let k in ty){if(ty[k]>0){labels.push(names[k]);vals.push(ty[k]);bgs.push(cols[k])}}
+if(vals.length===0){labels.push('暂无专注');vals.push(1);bgs.push('#ddd')}
+const ctx=document.getElementById('pieChart').getContext('2d');
+if(pc)pc.destroy();
+pc=new Chart(ctx,{type:'pie',data:{labels:labels,datasets:[{data:vals,backgroundColor:bgs,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+const lg=document.getElementById('pieLegend');lg.innerHTML='';
+if(vals.length===1&&vals[0]===1&&labels[0]==='暂无专注'){lg.innerHTML='<div style="color:#aaa">暂无数据</div>'}
+else{for(let i=0;i<labels.length;i++){const it=document.createElement('div');it.className='legend-item';it.innerHTML='<span class="legend-color" style="background:'+bgs[i]+'"></span>'+labels[i];lg.appendChild(it)}}
+}
+function bar(){
+const today=new Date();const labels=[],vals=[];
+for(let i=6;i>=0;i--){const d=new Date(today);d.setDate(today.getDate()-i);const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');vals.push(parseFloat(((data.daily[ds]?.total||0)/240).toFixed(1)));labels.push((d.getMonth()+1)+'/'+d.getDate())}
+const ctx=document.getElementById('barChart').getContext('2d');
+if(bc)bc.destroy();
+bc=new Chart(ctx,{type:'bar',data:{labels:labels,datasets:[{label:'座',data:vals,backgroundColor:'#2e6b9e',borderRadius:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#d6e5f5'}},x:{grid:{display:false}}}}});
+}
+function renderLog(){
+const el=document.getElementById('historyLog');
+if(!data.logs||data.logs.length===0){el.innerHTML='<div>📋 暂无记录</div>';return}
+let h='';data.logs.slice(0,8).forEach(l=>{h+='<div>🕒 '+l.date+' '+l.time+' · +'+l.minutes+'分钟 · '+l.typeName+'</div>'});
+el.innerHTML=h;
+}
+function renderAll(){drawMountain((todayTotal()%240)/240);stats();trend();pie();bar()}
+function init(){
+load();
+document.getElementById('add15Btn').onclick=()=>add(15,currentType);
+document.getElementById('add30Btn').onclick=()=>add(30,currentType);
+document.getElementById('add60Btn').onclick=()=>add(60,currentType);
+document.getElementById('mountainCanvas').onclick=()=>add(15,currentType);
+document.getElementById('focusTypeSelect').onchange=e=>currentType=e.target.value;
+document.getElementById('viewWeekBtn').onclick=()=>{trendView='week';trend()};
+document.getElementById('viewMonthBtn').onclick=()=>{trendView='month';trend()};
+document.getElementById('viewYearBtn').onclick=()=>{trendView='year';trend()};
+renderAll();renderLog();currentType=document.getElementById('focusTypeSelect').value;
+}
+window.addEventListener('load',init);
+})();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./service-worker.js').then(r=>console.log('SW OK',r.scope)).catch(e=>console.log('SW fail',e))})}
+</script>
+</body>
+</html>
